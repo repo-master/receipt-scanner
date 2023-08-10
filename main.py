@@ -54,7 +54,7 @@ def preprocess(img):
     gray = 1 - gray
 
     laplacian_var = cv2.Laplacian(gray, cv2.CV_64F).var()
-    print(laplacian_var)
+    print("Laplacian:", laplacian_var)
 
     gray = make_image_sharp(gray)
 
