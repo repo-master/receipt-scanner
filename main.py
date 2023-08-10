@@ -73,6 +73,8 @@ def handle_img_file(img_file: Path, save_path: Optional[Path] = None):
     if img is None:
         print("Skipping %s as it is not a valid image." % str(img_file))
         return
+    
+    print(img_file, end=": ")
 
     should_display = True
     if save_path is not None:
@@ -130,3 +132,5 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+
