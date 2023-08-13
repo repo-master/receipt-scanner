@@ -51,21 +51,25 @@ def preprocess(img):
 
     gray = cv2.cvtColor(p_img, cv2.COLOR_BGR2GRAY)
 
-    gray = 1 - gray
+    # gray = 1 - gray
 
-    laplacian_var = cv2.Laplacian(gray, cv2.CV_64F).var()
-    print("Laplacian:", laplacian_var)
+    # laplacian_var = cv2.Laplacian(gray, cv2.CV_64F).var()
+    # print("Laplacian:", laplacian_var)
 
-    gray = make_image_sharp(gray)
+    # gray = make_image_sharp(gray)
 
-    kernel = np.ones((3, 3), np.uint8)
-    morph = cv2.morphologyEx(gray, cv2.MORPH_ERODE, kernel, iterations=1)
-    morph = cv2.morphologyEx(morph, cv2.MORPH_DILATE, kernel, iterations=2)
+    # kernel = np.ones((3, 3), np.uint8)
+    # morph = cv2.morphologyEx(gray, cv2.MORPH_ERODE, kernel, iterations=1)
+    # morph = cv2.morphologyEx(morph, cv2.MORPH_DILATE, kernel, iterations=2)
 
     # Threshold: thresh should be between 0 and 255
-    _, gray = cv2.threshold(gray, 128, 255, cv2.THRESH_BINARY | cv2.THRESH_OTSU)
+    # _, gray = cv2.threshold(gray, 128, 255, cv2.THRESH_BINARY | cv2.THRESH_OTSU)
 
-    return gray
+    th3 = cv2.adaptiveThreshold(
+        gray, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY, 63, 24
+    )
+
+    return th3
 
 
 def handle_img_file(img_file: Path, save_path: Optional[Path] = None):
@@ -73,7 +77,7 @@ def handle_img_file(img_file: Path, save_path: Optional[Path] = None):
     if img is None:
         print("Skipping %s as it is not a valid image." % str(img_file))
         return
-    
+
     print(img_file, end=": ")
 
     should_display = True
@@ -132,5 +136,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
-
