@@ -3,12 +3,14 @@ import ctypes
 
 ctypes.windll.shcore.SetProcessDpiAwareness(True)
 
-
 import cv2
 import argparse
 import numpy as np
 from pathlib import Path
 from typing import Optional
+import pandas as pd
+
+from textract import extract_text_from_image
 
 
 def make_image_sharp(image, blur_amt=0):
@@ -47,9 +49,12 @@ def resize_image(image, fixed_height: int = 500):
 
 
 def preprocess(img):
-    p_img = img
 
-    gray = cv2.cvtColor(p_img, cv2.COLOR_BGR2GRAY)
+
+    # cv2.imshow("pre image", img)
+    # cv2.waitKey(0)
+
+    gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
 
     gray = 1 - gray
 
@@ -70,11 +75,26 @@ def preprocess(img):
 
 def handle_img_file(img_file: Path, save_path: Optional[Path] = None):
     img = cv2.imread(str(img_file))
+    print("reading : ", str(img_file))
+
     if img is None:
         print("Skipping %s as it is not a valid image." % str(img_file))
         return
     
-    print(img_file, end=": ")
+    # processed_image = preprocess(img)
+
+    list_of_dict = extract_text_from_image(img)
+
+    df = pd.DataFrame(list_of_dict)
+    print(df)
+
+
+    # file_name = str(img_file).split('\\')[1]
+    # with open(f'./output/textract/{file_name}.txt', 'w',encoding='utf-8') as output_file:
+    #     # output_file
+    #     output_file.write(list_of_dict)
+
+
 
     should_display = True
     if save_path is not None:
@@ -83,15 +103,6 @@ def handle_img_file(img_file: Path, save_path: Optional[Path] = None):
     if should_display:
         cv2.imshow("Image", resize_image(img))
 
-    preprocessed = preprocess(img)
-
-    if should_display and preprocessed is not None:
-        cv2.imshow("Preprocessed", preprocessed)
-
-    if save_path is not None:
-        img_save_path = save_path.joinpath(img_file.name)
-        save_path.mkdir(parents=True, exist_ok=True)
-        cv2.imwrite(str(img_save_path), preprocessed)
 
     if should_display:
         return cv2.waitKey(0)
@@ -126,6 +137,7 @@ def main():
             # Quit if q key is pressed
             if key == ord("q"):
                 break
+            break
     elif img_path.exists():
         handle_img_file(img_path, save_path)
 
