@@ -10,36 +10,9 @@ from pathlib import Path
 from typing import Optional
 import pandas as pd
 
-from textract import extract_text_from_image
+import json
 
-
-def make_image_sharp(image, blur_amt=0):
-    # tune to get better result
-
-    # fmt: off
-    kernel = np.array([
-        [-1, -1, -1],
-        [-1,  9, -1],
-        [-1, -1, -1]
-    ])
-    # fmt: on
-    image = cv2.filter2D(image, -1, kernel)
-    # image = cv2.GaussianBlur(image, (1, 1), blur_amt)
-
-    kernel = np.array([[1, 2, 1], [2, 8, 2], [1, 2, 1]]) / 16.0  # Normalize the kernel
-
-    # Apply the custom kernel using filter2D
-    filtered_image = cv2.filter2D(image, -1, kernel)
-
-    return filtered_image
-
-
-def enhance(img):
-    kernel = np.array([[1, 1, 1], [2, 4, 2], [1, 1, 1]]) / 16.0  # Normalize the kernel
-
-    # # Apply the custom kernel using filter2D
-    # filtered_image = cv2.filter2D(img, -1, kernel)
-    return cv2.dilate(img, kernel, iterations=1)
+from model.textract import extract_text_from_image
 
 
 def resize_image(image, fixed_height: int = 500):
@@ -48,29 +21,6 @@ def resize_image(image, fixed_height: int = 500):
     return cv2.resize(image, (new_width, fixed_height))
 
 
-def preprocess(img):
-
-
-    # cv2.imshow("pre image", img)
-    # cv2.waitKey(0)
-
-    gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-
-    gray = 1 - gray
-
-    laplacian_var = cv2.Laplacian(gray, cv2.CV_64F).var()
-    print("Laplacian:", laplacian_var)
-
-    gray = make_image_sharp(gray)
-
-    kernel = np.ones((3, 3), np.uint8)
-    morph = cv2.morphologyEx(gray, cv2.MORPH_ERODE, kernel, iterations=1)
-    morph = cv2.morphologyEx(morph, cv2.MORPH_DILATE, kernel, iterations=2)
-
-    # Threshold: thresh should be between 0 and 255
-    _, gray = cv2.threshold(gray, 128, 255, cv2.THRESH_BINARY | cv2.THRESH_OTSU)
-
-    return gray
 
 
 def handle_img_file(img_file: Path, save_path: Optional[Path] = None):
@@ -83,17 +33,12 @@ def handle_img_file(img_file: Path, save_path: Optional[Path] = None):
     
     # processed_image = preprocess(img)
 
-    list_of_dict = extract_text_from_image(img)
+    table_csv = extract_text_from_image(img)
 
-    df = pd.DataFrame(list_of_dict)
-    print(df)
-
-
-    # file_name = str(img_file).split('\\')[1]
-    # with open(f'./output/textract/{file_name}.txt', 'w',encoding='utf-8') as output_file:
-    #     # output_file
-    #     output_file.write(list_of_dict)
-
+    file_name = str(img_file).split('\\')[1]
+    with open(f'./output/textract/Final_{file_name}.json', 'w') as fout:
+        print("saving : ", file_name)
+        json.dump(table_csv, fout)
 
 
     should_display = True
@@ -137,7 +82,7 @@ def main():
             # Quit if q key is pressed
             if key == ord("q"):
                 break
-            break
+            # break
     elif img_path.exists():
         handle_img_file(img_path, save_path)
 
