@@ -1,0 +1,9 @@
+streamlit
+pydantic-settings
+pandas
+
+# AWS
+boto3
+
+# Streamlit components
+streamlit-echarts
