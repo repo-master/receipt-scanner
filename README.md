@@ -31,3 +31,6 @@ eg:
 ```shell
 python main.py -i "images/X51005268275.jpg"
 ```
+
+#TO DO
+- Need to fix table logic for missing items
