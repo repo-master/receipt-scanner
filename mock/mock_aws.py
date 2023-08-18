@@ -23,7 +23,6 @@ class MockAWSTextractClient(MockAWSClient):
         self.mock_config = mock_data_config
 
     def analyze_expense(self, Document: dict = None):
-        print(self.mock_config)
         with open(self.mock_config["analyze_expense_data_file"]) as f:
             return json.load(f)
 
