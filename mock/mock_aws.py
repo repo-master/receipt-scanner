@@ -1,5 +1,7 @@
 from contextlib import contextmanager
 
+import json
+
 
 class MockAWSClient:
     pass
@@ -7,26 +9,14 @@ class MockAWSClient:
 
 class MockAWSTextractClient(MockAWSClient):
     def analyze_expense(self, Document: dict = None):
-        return {
-            "ExpenseDocuments": [
-                {
-                    "SummaryFields": [],
-                    "LineItemGroups": [
-                        {
-                            "LineItems": {
-                                "LineItemExpenseFields": []
-                            }
-                        }
-                    ]
-                }
-            ]
-        }
+        with open("Full_response.json") as f:
+            return json.load(f)
 
 
-def mock_aws_client_factory(service_name: str) -> MockAWSClient:
+def mock_aws_client_factory(service_name: str, **kwargs) -> MockAWSClient:
     match service_name:
         case "textract":
-            return MockAWSTextractClient()
+            return MockAWSTextractClient(**kwargs)
     raise ValueError("Unknown service '%s'" % service_name)
 
 

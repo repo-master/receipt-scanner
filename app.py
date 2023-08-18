@@ -18,9 +18,9 @@ def image_upload_handler(
     save_db: SQLConnection,
     result_state_key: str,
     session_state: MutableMapping[Key, Any] = st.session_state,
-    get_aws_client_fn=get_aws_client
+    get_aws_client_fn=get_aws_client,
 ):
-    with st.spinner('Processing...'):
+    with st.spinner("Processing..."):
         with get_aws_client_fn("textract") as aws_client:
             result = receipt_scanner.run(
                 img_file_buffer, receipt_scanner.AWSPipeline(aws_client)
@@ -31,12 +31,14 @@ def image_upload_handler(
                 pass
 
 
-receipt_db_conn = st.experimental_connection('receipts_db', type='sql')
+receipt_db_conn = st.experimental_connection("receipts_db", type="sql")
 # TODO: Make it run only ONCE! This will run every time the page is rendered
 with receipt_db_conn.session as sess:
     from receipt_scanner.db.base import Base
+
     # Import all model classes so that they are added to the Base
     import receipt_scanner.models
+
     Base.metadata.create_all(receipt_db_conn._instance)
 
 
@@ -65,6 +67,7 @@ with file_tab:
         image_upload_handler(uploaded_file, receipt_db_conn, "receipt_data")
 
 with cam_tab:
+
     def _toggle_cam():
         st.session_state["cam_disabled"] = not st.session_state["cam_disabled"]
 
@@ -81,6 +84,7 @@ with cam_tab:
 
 with history_tab:
     from receipt_scanner.models import Receipt
+
     with receipt_db_conn.session as session:
         all_receipts = session.query(Receipt).all()
         if all_receipts is None or len(all_receipts) == 0:
@@ -96,17 +100,15 @@ def more_item_details(item_data: Optional[pd.DataFrame], summary_data):
     item_dataset = []
     if item_data is not None:
         item_dataset = [
-            {"name": itm["ITEM"], "value": itm["PRICE"]} for idx, itm in item_data.iterrows()
+            {"name": itm["ITEM"], "value": itm["PRICE"]}
+            for idx, itm in item_data.iterrows()
         ]
 
     if summary_data is not None and "Recipt_details" in summary_data:
         bill_summary = summary_data["Recipt_details"]
         tax_paid = receipt_scanner.parse_money(bill_summary["TAX"])
         if tax_paid is not None:
-            item_dataset.append({
-                "name": "Tax",
-                "value": tax_paid
-            })
+            item_dataset.append({"name": "Tax", "value": tax_paid})
 
     options = {
         "title": {
@@ -138,6 +140,7 @@ def more_item_details(item_data: Optional[pd.DataFrame], summary_data):
     st_echarts(
         options=options,
         height="600px",
+        theme="dark",  # FIXME: See https://github.com/streamlit/streamlit/issues/5009
     )
 
 
