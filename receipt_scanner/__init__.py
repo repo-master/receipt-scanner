@@ -1,5 +1,5 @@
 from .pipeline import ScannerPipeline
-from .utils import parse_money
+from .utils import parse_money, deep_get
 
 from .aws import AWSPipeline, get_aws_client
 

@@ -3,9 +3,9 @@ import streamlit as st
 import pandas as pd
 
 import receipt_scanner
-from receipt_scanner import get_aws_client
+from receipt_scanner import deep_get, get_aws_client
 
-from typing import MutableMapping, Any, Optional
+from typing import MutableMapping, Any, Optional, List
 from streamlit.type_util import Key
 from streamlit.connections import SQLConnection
 
@@ -17,8 +17,24 @@ from mock import get_aws_mock_client
 LOGGER = logging.getLogger(__name__)
 
 
-_aws_use_mock: bool = st.secrets.get("aws_client", {}).get("use_mock_client", False)
+_aws_use_mock: bool = deep_get(st.secrets, "aws_client", "use_mock_client", default=False)
 DEFAULT_AWS_CLIENT_FN = get_aws_mock_client if _aws_use_mock else get_aws_client
+
+
+def insert_new_receipt(result, save_db: SQLConnection):
+    from receipt_scanner.models import Receipt
+    with save_db.session as sess:
+        table_data: Optional[pd.DataFrame] = result['table']
+        item_list = []
+        if table_data is not None:
+            item_list = table_data.to_dict()
+
+        rcpt = Receipt(
+            summary=result['summary'],
+            item_listing=item_list
+        )
+        sess.add(rcpt)
+        sess.commit()
 
 
 def image_upload_handler(
@@ -38,9 +54,7 @@ def image_upload_handler(
                 img_file_buffer, receipt_scanner.AWSPipeline(aws_client)
             )
             session_state[result_state_key] = result
-
-            with save_db.session as sess:
-                pass
+            insert_new_receipt(result, save_db)
 
 
 receipt_db_conn = st.experimental_connection("receipts_db", type="sql")
@@ -102,11 +116,16 @@ with scanner_tab:
         from receipt_scanner.models import Receipt
 
         with receipt_db_conn.session as session:
-            all_receipts = session.query(Receipt).all()
+            all_receipts: Optional[List[Receipt]] = session.query(Receipt).all()
             if all_receipts is None or len(all_receipts) == 0:
                 st.write("No saved receipts found")
             else:
-                st.dataframe(all_receipts)
+                receipts = [{
+                    "id": rcpt.receipt_id,
+                    "scan_date": rcpt.time_created,
+                    "vendor": deep_get(rcpt.summary, "Vendor", "VENDOR_NAME")
+                } for rcpt in all_receipts]
+                st.dataframe(receipts)
 
     "## Results"
 

@@ -1,3 +1,4 @@
+"""Database models"""
 from ..db import Base
 
 from datetime import datetime
