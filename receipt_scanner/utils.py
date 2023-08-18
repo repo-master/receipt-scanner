@@ -11,7 +11,7 @@ TMoney = float
 
 
 def parse_money(money: str) -> Optional[TMoney]:
-    with suppress(TypeError, ValueError, KeyError, Exception):
+    with suppress(TypeError, ValueError):
         return TMoney(sub(r"[^\d.]", "", money))
 
 
