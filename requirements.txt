@@ -2,6 +2,8 @@ streamlit
 pydantic-settings
 pandas
 
+SQLAlchemy
+
 # AWS
 boto3
 

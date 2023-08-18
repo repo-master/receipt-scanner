@@ -144,3 +144,5 @@ dmypy.json
 *.vsix
 
 .streamlit/secrets.toml
+
+*.test.db
