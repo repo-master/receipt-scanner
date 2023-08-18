@@ -143,10 +143,13 @@ with scanner_tab:
             ]
 
         if summary_data is not None and "Recipt_details" in summary_data:
-            bill_summary = summary_data["Recipt_details"]
-            tax_paid = receipt_scanner.parse_money(bill_summary["TAX"])
-            if tax_paid is not None:
-                item_dataset.append({"name": "Tax", "value": tax_paid})
+            try:
+                bill_summary = summary_data["Recipt_details"]
+                tax_paid = receipt_scanner.parse_money(bill_summary.get("TAX"))
+                if tax_paid is not None:
+                    item_dataset.append({"name": "Tax", "value": tax_paid})
+            except KeyError:
+                pass
 
         options = {
             "title": {
