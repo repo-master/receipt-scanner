@@ -2,6 +2,9 @@ from .pipeline import ScannerPipeline
 
 from .aws import AWSPipeline, get_aws_client
 
+from contextlib import suppress
+from typing import Optional
+
 
 def run(img_file_buffer, scanner_pipeline: ScannerPipeline):
     img_bytearray = img_file_buffer.getvalue()
@@ -9,5 +12,6 @@ def run(img_file_buffer, scanner_pipeline: ScannerPipeline):
     return response
 
 
-def parse_money(txt: str) -> float:
-    return None
+def parse_money(txt: str) -> Optional[float]:
+    with suppress(TypeError):
+        return float(txt)

@@ -53,7 +53,6 @@ class AWSPipeline(ScannerPipeline):
             print("Faced Error as not equal number of rows extracted")
             print("----x-----" * 10)
 
-
     def extract_summary(self, summary_field):
         vendor_info = [
             "VENDOR_NAME",

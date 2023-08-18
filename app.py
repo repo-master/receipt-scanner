@@ -1,29 +1,47 @@
 import streamlit as st
-import numpy as np
 import pandas as pd
 
 import receipt_scanner
+from receipt_scanner import get_aws_client
 
-from typing import MutableMapping, Any
+from typing import MutableMapping, Any, Optional
 from streamlit.type_util import Key
+from streamlit.connections import SQLConnection
 
 from streamlit_echarts import st_echarts
+
+from mock import get_aws_mock_client
 
 
 def image_upload_handler(
     img_file_buffer,
+    save_db: SQLConnection,
     result_state_key: str,
     session_state: MutableMapping[Key, Any] = st.session_state,
+    get_aws_client_fn=get_aws_client
 ):
     with st.spinner('Processing...'):
-        with receipt_scanner.get_aws_client("textract") as aws_client:
+        with get_aws_client_fn("textract") as aws_client:
             result = receipt_scanner.run(
                 img_file_buffer, receipt_scanner.AWSPipeline(aws_client)
             )
             session_state[result_state_key] = result
 
+            with save_db.session as sess:
+                pass
+
+
+receipt_db_conn = st.experimental_connection('receipts_db', type='sql')
+# TODO: Make it run only ONCE! This will run every time the page is rendered
+with receipt_db_conn.session as sess:
+    from receipt_scanner.db.base import Base
+    # Import all model classes so that they are added to the Base
+    import receipt_scanner.models
+    Base.metadata.create_all(receipt_db_conn._instance)
+
 
 # UI start
+# Make note that "magic" output is enabled so the below strings will output to the UI
 
 "# Receipt scanner"
 "Upload a receipt image to OCR, Analyze and parse it"
@@ -44,10 +62,9 @@ with file_tab:
         help="Select a receipt image to upload",
     )
     if uploaded_file is not None:
-        image_upload_handler(uploaded_file, "receipt_data")
+        image_upload_handler(uploaded_file, receipt_db_conn, "receipt_data")
 
 with cam_tab:
-
     def _toggle_cam():
         st.session_state["cam_disabled"] = not st.session_state["cam_disabled"]
 
@@ -60,10 +77,22 @@ with cam_tab:
     )
 
     if captured_image is not None:
-        image_upload_handler(captured_image, "receipt_data")
+        image_upload_handler(captured_image, receipt_db_conn, "receipt_data")
+
+with history_tab:
+    from receipt_scanner.models import Receipt
+    with receipt_db_conn.session as session:
+        all_receipts = session.query(Receipt).all()
+        if all_receipts is None or len(all_receipts) == 0:
+            st.write("No saved receipts found")
+        else:
+            st.dataframe(all_receipts)
 
 
-def more_item_details(item_data, summary_data):
+"## Result"
+
+
+def more_item_details(item_data: Optional[pd.DataFrame], summary_data):
     item_dataset = []
     if item_data is not None:
         item_dataset = [
