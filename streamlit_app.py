@@ -1,3 +1,4 @@
+import logging
 import streamlit as st
 import pandas as pd
 
@@ -13,12 +14,23 @@ from streamlit_echarts import st_echarts
 from mock import get_aws_mock_client
 
 
+LOGGER = logging.getLogger(__name__)
+
+
+_aws_use_mock: bool = st.secrets.get("aws_client", {}).get("use_mock_client", False)
+DEFAULT_AWS_CLIENT_FN = get_aws_mock_client if _aws_use_mock else get_aws_client
+
+
+if _aws_use_mock:
+    LOGGER.warning("Using Mock AWS client for requests")
+
+
 def image_upload_handler(
     img_file_buffer,
     save_db: SQLConnection,
     result_state_key: str,
     session_state: MutableMapping[Key, Any] = st.session_state,
-    get_aws_client_fn=get_aws_mock_client,
+    get_aws_client_fn=DEFAULT_AWS_CLIENT_FN,
 ):
     with st.spinner("Processing..."):
         with get_aws_client_fn("textract") as aws_client:
