@@ -16,6 +16,7 @@ def parse_money(money: str) -> Optional[TMoney]:
 
 
 def deep_get(dictionary, *keys, default=None):
+    """Get item from nested dict"""
     return reduce(
         lambda d, key: d.get(key, default) if isinstance(d, Mapping) else default,
         keys,
