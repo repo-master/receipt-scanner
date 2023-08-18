@@ -12,9 +12,9 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 class AWSSettings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
-    region_name: str
-    aws_access_key_id: str
-    aws_secret_access_key: str
+    region_name: Optional[str] = None
+    aws_access_key_id: Optional[str] = None
+    aws_secret_access_key: Optional[str] = None
 
 
 class AWSPipeline(ScannerPipeline):
