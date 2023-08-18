@@ -18,7 +18,7 @@ def image_upload_handler(
     save_db: SQLConnection,
     result_state_key: str,
     session_state: MutableMapping[Key, Any] = st.session_state,
-    get_aws_client_fn=get_aws_client,
+    get_aws_client_fn=get_aws_mock_client,
 ):
     with st.spinner("Processing..."):
         with get_aws_client_fn("textract") as aws_client:
@@ -46,137 +46,143 @@ with receipt_db_conn.session as sess:
 # Make note that "magic" output is enabled so the below strings will output to the UI
 
 "# Receipt scanner"
-"Upload a receipt image to OCR, Analyze and parse it"
 
-if "cam_disabled" not in st.session_state:
-    st.session_state["cam_disabled"] = True
+scanner_tab, statistics_tab = st.tabs(["Scanner", "Statistics"])
 
-if "receipt_data" not in st.session_state:
-    st.session_state["receipt_data"] = None
+with scanner_tab:
+    "Upload a receipt image to OCR, Analyze and parse it"
 
-file_tab, cam_tab, history_tab = st.tabs(["Upload", "Camera", "History"])
+    if "cam_disabled" not in st.session_state:
+        st.session_state["cam_disabled"] = True
 
-with file_tab:
-    uploaded_file = st.file_uploader(
-        "Upload an image",
-        type=["png", "jpg", "jpeg", "gif", "webp", "bmp"],
-        accept_multiple_files=False,
-        help="Select a receipt image to upload",
-    )
-    if uploaded_file is not None:
-        image_upload_handler(uploaded_file, receipt_db_conn, "receipt_data")
+    if "receipt_data" not in st.session_state:
+        st.session_state["receipt_data"] = None
 
-with cam_tab:
+    file_tab, cam_tab, history_tab = st.tabs(["Upload", "Camera", "History"])
 
-    def _toggle_cam():
-        st.session_state["cam_disabled"] = not st.session_state["cam_disabled"]
-
-    st.button(
-        "Enable camera" if st.session_state["cam_disabled"] else "Disable camera",
-        on_click=_toggle_cam,
-    )
-    captured_image = st.camera_input(
-        "Scan with Camera", disabled=st.session_state.cam_disabled
-    )
-
-    if captured_image is not None:
-        image_upload_handler(captured_image, receipt_db_conn, "receipt_data")
-
-with history_tab:
-    from receipt_scanner.models import Receipt
-
-    with receipt_db_conn.session as session:
-        all_receipts = session.query(Receipt).all()
-        if all_receipts is None or len(all_receipts) == 0:
-            st.write("No saved receipts found")
-        else:
-            st.dataframe(all_receipts)
-
-
-"## Result"
-
-
-def more_item_details(item_data: Optional[pd.DataFrame], summary_data):
-    item_dataset = []
-    if item_data is not None:
-        item_dataset = [
-            {"name": itm["ITEM"], "value": itm["PRICE"]}
-            for idx, itm in item_data.iterrows()
-        ]
-
-    if summary_data is not None and "Recipt_details" in summary_data:
-        bill_summary = summary_data["Recipt_details"]
-        tax_paid = receipt_scanner.parse_money(bill_summary["TAX"])
-        if tax_paid is not None:
-            item_dataset.append({"name": "Tax", "value": tax_paid})
-
-    options = {
-        "title": {
-            "text": "Price breakdown",
-            "subtext": "Item-wise price",
-            "left": "center",
-        },
-        "tooltip": {"trigger": "item"},
-        "legend": {
-            "orient": "vertical",
-            "left": "left",
-        },
-        "series": [
-            {
-                "name": "Item",
-                "type": "pie",
-                "radius": "50%",
-                "data": item_dataset,
-                "emphasis": {
-                    "itemStyle": {
-                        "shadowBlur": 10,
-                        "shadowOffsetX": 0,
-                        "shadowColor": "rgba(0, 0, 0, 0.5)",
-                    }
-                },
-            },
-        ],
-    }
-    st_echarts(
-        options=options,
-        height="600px",
-        theme="dark",  # FIXME: See https://github.com/streamlit/streamlit/issues/5009
-    )
-
-
-def show_scan_results():
-    # NOTE: *DO NOT DELETE* the strings placed here, they are "Magic" outputs
-    receipt_data = st.session_state.get("receipt_data")
-
-    item_data = None
-    summary_data = None
-
-    if receipt_data is not None:
-        item_data = receipt_data["table"]
-        summary_data = receipt_data["summary"]
-
-    img_preview_col, summary_col = st.columns(2)
-
-    with img_preview_col:
-        "Scanned image"
+    with file_tab:
+        uploaded_file = st.file_uploader(
+            "Upload an image",
+            type=["png", "jpg", "jpeg", "gif", "webp", "bmp"],
+            accept_multiple_files=False,
+            help="Select a receipt image to upload",
+        )
         if uploaded_file is not None:
-            st.image(uploaded_file, caption="Uploaded image", width=300)
+            image_upload_handler(uploaded_file, receipt_db_conn, "receipt_data")
 
-    with summary_col:
-        "Summary"
-        if summary_data is not None:
-            st.json(summary_data)
+    with cam_tab:
 
-    with st.container():
-        "Item list"
+        def _toggle_cam():
+            st.session_state["cam_disabled"] = not st.session_state["cam_disabled"]
 
-        st.dataframe(data=item_data)
+        st.button(
+            "Enable camera" if st.session_state["cam_disabled"] else "Disable camera",
+            on_click=_toggle_cam,
+        )
+        captured_image = st.camera_input(
+            "Scan with Camera", disabled=st.session_state.cam_disabled
+        )
 
-        if item_data is None or item_data.empty:
-            "No items detected"
+        if captured_image is not None:
+            image_upload_handler(captured_image, receipt_db_conn, "receipt_data")
 
-        with st.expander("More details"):
-            more_item_details(item_data, summary_data)
+    with history_tab:
+        from receipt_scanner.models import Receipt
+
+        with receipt_db_conn.session as session:
+            all_receipts = session.query(Receipt).all()
+            if all_receipts is None or len(all_receipts) == 0:
+                st.write("No saved receipts found")
+            else:
+                st.dataframe(all_receipts)
+
+    "## Results"
+
+    def more_item_details(item_data: Optional[pd.DataFrame], summary_data):
+        item_dataset = []
+        if item_data is not None:
+            item_dataset = [
+                {"name": itm["ITEM"], "value": itm["PRICE"]}
+                for idx, itm in item_data.iterrows()
+            ]
+
+        if summary_data is not None and "Recipt_details" in summary_data:
+            bill_summary = summary_data["Recipt_details"]
+            tax_paid = receipt_scanner.parse_money(bill_summary["TAX"])
+            if tax_paid is not None:
+                item_dataset.append({"name": "Tax", "value": tax_paid})
+
+        options = {
+            "title": {
+                "text": "Price breakdown",
+                "subtext": "Item-wise price",
+                "left": "center",
+            },
+            "tooltip": {"trigger": "item"},
+            "legend": {
+                "orient": "vertical",
+                "left": "left",
+            },
+            "series": [
+                {
+                    "name": "Item",
+                    "type": "pie",
+                    "radius": "50%",
+                    "data": item_dataset,
+                    "emphasis": {
+                        "itemStyle": {
+                            "shadowBlur": 10,
+                            "shadowOffsetX": 0,
+                            "shadowColor": "rgba(0, 0, 0, 0.5)",
+                        }
+                    },
+                },
+            ],
+        }
+        st_echarts(
+            options=options,
+            height="600px",
+            theme="dark",  # FIXME: See https://github.com/streamlit/streamlit/issues/5009
+        )
+
+    def show_scan_results():
+        # NOTE: *DO NOT DELETE* the strings placed here, they are "Magic" outputs
+        receipt_data = st.session_state.get("receipt_data")
+
+        item_data = None
+        summary_data = None
+
+        if receipt_data is None:
+            "Upload an image or select from history to view results"
+        else:
+            item_data = receipt_data["table"]
+            summary_data = receipt_data["summary"]
+
+            img_preview_col, summary_col = st.columns(2)
+
+            with img_preview_col:
+                "Scanned image"
+                if uploaded_file is not None:
+                    st.image(uploaded_file, caption="Uploaded image", width=300)
+
+            with summary_col:
+                "Summary"
+                if summary_data is not None:
+                    st.json(summary_data)
+
+            with st.container():
+                "Item list"
+
+                st.dataframe(data=item_data)
+
+                if item_data is None or item_data.empty:
+                    "No items detected"
+
+                with st.expander("More details"):
+                    more_item_details(item_data, summary_data)
+
+    show_scan_results()
 
 
-show_scan_results()
+with statistics_tab:
+    "Receipt statistics"
