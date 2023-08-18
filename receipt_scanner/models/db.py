@@ -3,7 +3,7 @@ from ..db import Base
 
 from datetime import datetime
 
-from sqlalchemy import JSON, Column, DateTime, Identity, Integer, String, Enum, select
+from sqlalchemy import JSON, Column, DateTime, Identity, Integer, String
 from sqlalchemy.orm import Mapped
 from sqlalchemy.sql import func
 
@@ -26,6 +26,10 @@ class Receipt(ScannerBase):
     )
     summary: Mapped[dict] = Column("summary", JSON, default={})
     item_listing: Mapped[list] = Column("item_listing", JSON, default=[])
+    category: Mapped[str] = Column("category", String, nullable=True)
+    time_scanned: Mapped[datetime] = Column(
+        "time_scanned", DateTime(timezone=True), server_default=func.now()
+    )
 
 
 __all__ = ["Receipt"]

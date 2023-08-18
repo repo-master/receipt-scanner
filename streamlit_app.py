@@ -122,13 +122,13 @@ with scanner_tab:
             else:
                 receipts = [{
                     "id": rcpt.receipt_id,
-                    "scan_date": rcpt.time_created,
+                    "scan_date": rcpt.time_scanned,
                     "vendor": deep_get(rcpt.summary, "Vendor", "VENDOR_NAME"),
                     "total": deep_get(rcpt.summary, "Recipt_details", "TOTAL"),
-                    "item_count": len(rcpt.item_listing),  # TODO: Method extract
+                    "item_count": len(rcpt.item_listing),
                     "invoice_id": deep_get(rcpt.summary, "Recipt_details", "INVOICE_RECEIPT_ID"),
                     "invoice_date": deep_get(rcpt.summary, "Recipt_details", "INVOICE_RECEIPT_DATE"),
-                    "category": "Unknown",  # TODO: Stub
+                    "category": rcpt.category,
                 } for rcpt in all_receipts]
                 st.dataframe(receipts)
 
