@@ -44,10 +44,6 @@ def image_upload_handler(
     session_state: MutableMapping[Key, Any] = st.session_state,
     get_aws_client_fn=DEFAULT_AWS_CLIENT_FN,
 ):
-    global _aws_use_mock
-    if _aws_use_mock:
-        LOGGER.warning("Using Mock AWS client for processing image")
-
     with st.spinner("Processing..."):
         with get_aws_client_fn("textract") as aws_client:
             result = receipt_scanner.run(
@@ -70,6 +66,10 @@ with receipt_db_conn.session as sess:
 
 # UI start
 # Make note that "magic" output is enabled so the below strings will output to the UI
+
+if _aws_use_mock:
+    "Note: Using Mock AWS client for processing image"
+
 
 "# Receipt scanner"
 
