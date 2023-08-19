@@ -1,6 +1,17 @@
 from contextlib import contextmanager
+from pathlib import Path
+from typing import TypedDict
 
 import json
+
+
+class MockAWSConfig(TypedDict):
+    analyze_expense_data_file: Path
+
+
+DEFAULT_TEXTRACT_CONFIG = MockAWSConfig(
+    analyze_expense_data_file="mock_data/Full_response.json"
+)
 
 
 class MockAWSClient:
@@ -8,8 +19,11 @@ class MockAWSClient:
 
 
 class MockAWSTextractClient(MockAWSClient):
+    def __init__(self, mock_data_config: MockAWSConfig = DEFAULT_TEXTRACT_CONFIG):
+        self.mock_config = mock_data_config
+
     def analyze_expense(self, Document: dict = None):
-        with open("Full_response.json") as f:
+        with open(self.mock_config["analyze_expense_data_file"]) as f:
             return json.load(f)
 
 
