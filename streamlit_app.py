@@ -4,6 +4,7 @@ import pandas as pd
 
 import receipt_scanner
 from receipt_scanner import deep_get, get_aws_client
+from receipt_scanner.models import Receipt
 
 from typing import MutableMapping, Any, Optional, List
 from streamlit.type_util import Key
@@ -24,8 +25,6 @@ DEFAULT_AWS_CLIENT_FN = get_aws_mock_client if _aws_use_mock else get_aws_client
 
 
 def insert_new_receipt(result, save_db: SQLConnection):
-    from receipt_scanner.models import Receipt
-
     with save_db.session as sess:
         table_data: Optional[pd.DataFrame] = result["TABLE"]
         item_list = []
@@ -51,6 +50,16 @@ def image_upload_handler(
             )
             session_state[result_state_key] = result
             insert_new_receipt(result, save_db)
+
+
+def show_history_item(item: Receipt):
+    global uploaded_file
+    st.session_state["receipt_data"] = {
+        "SUMMARY": item.summary,
+        "TABLE": pd.DataFrame(item.item_listing)
+    }
+    # TODO: Change image to be shown (without AWS calling)
+    uploaded_file = None
 
 
 receipt_db_conn = st.experimental_connection("receipts_db", type="sql")
@@ -113,7 +122,6 @@ with scanner_tab:
             image_upload_handler(captured_image, receipt_db_conn, "receipt_data")
 
     with history_tab:
-        from receipt_scanner.models import Receipt
 
         with receipt_db_conn.session as session:
             all_receipts: Optional[List[Receipt]] = session.query(Receipt).all()
@@ -140,6 +148,7 @@ with scanner_tab:
                     for rcpt in all_receipts
                 ]
                 st.dataframe(receipts)
+        st.button("Browse", on_click=show_history_item, args=(all_receipts[0],))
 
     "## Results"
 

@@ -30,6 +30,7 @@ class Receipt(ScannerBase):
     time_scanned: Mapped[datetime] = Column(
         "time_scanned", DateTime(timezone=True), server_default=func.now()
     )
+    # TODO: Add image column
 
 
 __all__ = ["Receipt"]
