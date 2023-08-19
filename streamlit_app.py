@@ -17,6 +17,17 @@ from mock import get_aws_mock_client
 
 LOGGER = logging.getLogger(__name__)
 
+RECEIPT_RESULT_DATA_KEY = "receipt_result_data"
+
+
+if "cam_disabled" not in st.session_state:
+    # Camera is off by default (privacy)
+    st.session_state["cam_disabled"] = True
+
+if RECEIPT_RESULT_DATA_KEY not in st.session_state:
+    # What amounts to the results of the Receipt data (image, summary, items)
+    st.session_state[RECEIPT_RESULT_DATA_KEY] = None
+
 
 _aws_use_mock: bool = deep_get(
     st.secrets, "aws_client", "use_mock_client", default=False
@@ -43,23 +54,34 @@ def image_upload_handler(
     session_state: MutableMapping[Key, Any] = st.session_state,
     get_aws_client_fn=DEFAULT_AWS_CLIENT_FN,
 ):
+    LOGGER.info("Process: %s", img_file_buffer)
+    if img_file_buffer is None:
+        return
     with st.spinner("Processing..."):
         with get_aws_client_fn("textract") as aws_client:
+            # Perform document analysis and get the result
             result = receipt_scanner.run(
                 img_file_buffer, receipt_scanner.AWSPipeline(aws_client)
             )
-            session_state[result_state_key] = result
-            insert_new_receipt(result, save_db)
+            # Set the result state (to display to the user)
+            session_state[result_state_key] = {
+                "SUMMARY": result["SUMMARY"],
+                "TABLE": result["TABLE"],
+                "IMAGE": img_file_buffer,
+            }
+            #  insert_new_receipt(result, save_db)
 
 
-def show_history_item(item: Receipt):
-    global uploaded_file
-    st.session_state["receipt_data"] = {
+def show_history_item(
+    item: Receipt,
+    result_state_key: str,
+    session_state: MutableMapping[Key, Any] = st.session_state,
+):
+    session_state[result_state_key] = {
         "SUMMARY": item.summary,
-        "TABLE": pd.DataFrame(item.item_listing)
+        "TABLE": pd.DataFrame(item.item_listing),
+        "IMAGE": None,  # TODO: Change image to be shown
     }
-    # TODO: Change image to be shown (without AWS calling)
-    uploaded_file = None
 
 
 receipt_db_conn = st.experimental_connection("receipts_db", type="sql")
@@ -87,12 +109,6 @@ scanner_tab, statistics_tab = st.tabs(["Scanner", "Statistics"])
 with scanner_tab:
     "Upload a receipt image to OCR, Analyze and parse it"
 
-    if "cam_disabled" not in st.session_state:
-        st.session_state["cam_disabled"] = True
-
-    if "receipt_data" not in st.session_state:
-        st.session_state["receipt_data"] = None
-
     file_tab, cam_tab, history_tab = st.tabs(["Upload", "Camera", "History"])
 
     with file_tab:
@@ -102,8 +118,15 @@ with scanner_tab:
             accept_multiple_files=False,
             help="Select a receipt image to upload",
         )
-        if uploaded_file is not None:
-            image_upload_handler(uploaded_file, receipt_db_conn, "receipt_data")
+
+        st.button(
+            "Process",
+            key="btn_process_upload",
+            type="secondary",
+            disabled=uploaded_file is None,
+            on_click=image_upload_handler,
+            args=(uploaded_file, receipt_db_conn, RECEIPT_RESULT_DATA_KEY),
+        )
 
     with cam_tab:
 
@@ -115,14 +138,19 @@ with scanner_tab:
             on_click=_toggle_cam,
         )
         captured_image = st.camera_input(
-            "Scan with Camera", disabled=st.session_state.cam_disabled
+            "Scan with Camera",
+            disabled=st.session_state.cam_disabled,
+        )
+        st.button(
+            "Process",
+            key="btn_process_camera",
+            type="secondary",
+            disabled=captured_image is None,
+            on_click=image_upload_handler,
+            args=(captured_image, receipt_db_conn, RECEIPT_RESULT_DATA_KEY),
         )
 
-        if captured_image is not None:
-            image_upload_handler(captured_image, receipt_db_conn, "receipt_data")
-
     with history_tab:
-
         with receipt_db_conn.session as session:
             all_receipts: Optional[List[Receipt]] = session.query(Receipt).all()
             if all_receipts is None or len(all_receipts) == 0:
@@ -148,11 +176,18 @@ with scanner_tab:
                     for rcpt in all_receipts
                 ]
                 st.dataframe(receipts)
-        st.button("Browse", on_click=show_history_item, args=(all_receipts[0],))
+        st.button(
+            "Process",
+            key="btn_process_history",
+            type="secondary",
+            on_click=show_history_item,
+            args=(all_receipts[0], RECEIPT_RESULT_DATA_KEY),
+        )
 
     "## Results"
 
     def more_item_details(item_data: Optional[pd.DataFrame], summary_data):
+        """Shows Pie chart to show per-item breakdown chart"""
         item_dataset = []
         if item_data is not None:
             item_dataset = [
@@ -204,7 +239,7 @@ with scanner_tab:
 
     def show_scan_results():
         # NOTE: *DO NOT DELETE* the strings placed here, they are "Magic" outputs
-        receipt_data = st.session_state.get("receipt_data")
+        receipt_data = st.session_state.get(RECEIPT_RESULT_DATA_KEY)
 
         item_data = None
         summary_data = None
@@ -214,13 +249,16 @@ with scanner_tab:
         else:
             item_data = receipt_data["TABLE"]
             summary_data = receipt_data["SUMMARY"]
+            scanned_image = receipt_data["IMAGE"]
 
             img_preview_col, summary_col = st.columns(2)
 
             with img_preview_col:
                 "Scanned image"
-                if uploaded_file is not None:
-                    st.image(uploaded_file, caption="Uploaded image", width=300)
+                if scanned_image is None:
+                    "Image not available"
+                else:
+                    st.image(scanned_image, caption="Uploaded image", width=300)
 
             with summary_col:
                 "Summary"
