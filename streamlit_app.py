@@ -154,39 +154,44 @@ with scanner_tab:
         selected_receipt_item = None
 
         def _get_receipt_label(receipt_item):
-            return "%s - %s" % (receipt_item["scan_date"].strftime("%c"), receipt_item["vendor"])
+            return "%s - %s" % (
+                receipt_item["scan_date"].strftime("%c"),
+                receipt_item["vendor"],
+            )
 
         with receipt_db_conn.session as session:
             all_receipts: Optional[List[Receipt]] = session.query(Receipt).all()
             if all_receipts is None or len(all_receipts) == 0:
                 st.write("No saved receipts found")
             else:
-                receipts = pd.DataFrame([
-                    {
-                        "id": rcpt.receipt_id,
-                        "scan_date": rcpt.time_scanned,
-                        "vendor": deep_get(rcpt.summary, "VENDOR", "VENDOR_NAME"),
-                        "total": deep_get(rcpt.summary, "RECEIPT_DETAILS", "TOTAL"),
-                        "item_count": deep_get(
-                            rcpt.summary, "RECEIPT_DETAILS", "ITEMS"
-                        ),
-                        "invoice_id": deep_get(
-                            rcpt.summary, "RECEIPT_DETAILS", "INVOICE_RECEIPT_ID"
-                        ),
-                        "invoice_date": deep_get(
-                            rcpt.summary, "RECEIPT_DETAILS", "INVOICE_RECEIPT_DATE"
-                        ),
-                        "category": rcpt.category,
-                    }
-                    for rcpt in all_receipts
-                ])  # .set_index("id")
+                receipts = pd.DataFrame(
+                    [
+                        {
+                            "id": rcpt.receipt_id,
+                            "scan_date": rcpt.time_scanned,
+                            "vendor": deep_get(rcpt.summary, "VENDOR", "VENDOR_NAME"),
+                            "total": deep_get(rcpt.summary, "RECEIPT_DETAILS", "TOTAL"),
+                            "item_count": deep_get(
+                                rcpt.summary, "RECEIPT_DETAILS", "ITEMS"
+                            ),
+                            "invoice_id": deep_get(
+                                rcpt.summary, "RECEIPT_DETAILS", "INVOICE_RECEIPT_ID"
+                            ),
+                            "invoice_date": deep_get(
+                                rcpt.summary, "RECEIPT_DETAILS", "INVOICE_RECEIPT_DATE"
+                            ),
+                            "category": rcpt.category,
+                        }
+                        for rcpt in all_receipts
+                    ]
+                )  # .set_index("id")
 
                 st.dataframe(receipts, hide_index=True)
                 selected_receipt_item = st.selectbox(
-                    ':receipt: Show result',
+                    ":receipt: Show result",
                     receipts.index,
                     placeholder="Item",
-                    format_func=lambda item: _get_receipt_label(receipts.loc[item])
+                    format_func=lambda item: _get_receipt_label(receipts.loc[item]),
                 )
 
             def _process_history_item():
