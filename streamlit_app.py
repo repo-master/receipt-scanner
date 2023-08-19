@@ -151,12 +151,17 @@ with scanner_tab:
         )
 
     with history_tab:
+        selected_receipt_item = None
+
+        def _get_receipt_label(receipt_item):
+            return "%s - %s" % (receipt_item["scan_date"].strftime("%c"), receipt_item["vendor"])
+
         with receipt_db_conn.session as session:
             all_receipts: Optional[List[Receipt]] = session.query(Receipt).all()
             if all_receipts is None or len(all_receipts) == 0:
                 st.write("No saved receipts found")
             else:
-                receipts = [
+                receipts = pd.DataFrame([
                     {
                         "id": rcpt.receipt_id,
                         "scan_date": rcpt.time_scanned,
@@ -174,15 +179,30 @@ with scanner_tab:
                         "category": rcpt.category,
                     }
                     for rcpt in all_receipts
-                ]
-                st.dataframe(receipts)
-        st.button(
-            "Process",
-            key="btn_process_history",
-            type="secondary",
-            on_click=show_history_item,
-            args=(all_receipts[0], RECEIPT_RESULT_DATA_KEY),
-        )
+                ])  # .set_index("id")
+
+                st.dataframe(receipts, hide_index=True)
+                selected_receipt_item = st.selectbox(
+                    ':receipt: Show result',
+                    receipts.index,
+                    placeholder="Item",
+                    format_func=lambda item: _get_receipt_label(receipts.loc[item])
+                )
+
+            def _process_history_item():
+                selected_receipt_obj = None
+                if selected_receipt_item is not None:
+                    selected_receipt_obj = all_receipts[selected_receipt_item]
+                if selected_receipt_obj is not None:
+                    show_history_item(selected_receipt_obj, RECEIPT_RESULT_DATA_KEY)
+
+            st.button(
+                "Process",
+                key="btn_process_history",
+                type="secondary",
+                disabled=selected_receipt_item is None,
+                on_click=_process_history_item,
+            )
 
     "## Results"
 
