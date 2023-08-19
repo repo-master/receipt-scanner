@@ -33,7 +33,7 @@ class AWSPipeline(ScannerPipeline):
             response["ExpenseDocuments"][0]["LineItemGroups"]
         )
         recipt["SUMMARY"] = self.extract_summary(
-            response["ExpenseDocuments"][0]["SummaryFields"], len(recipt["TABLE"])
+            response["ExpenseDocuments"][0]["SummaryFields"], len(recipt.get("TABLE", []))
         )
         return recipt
 
