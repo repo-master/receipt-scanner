@@ -123,11 +123,11 @@ with scanner_tab:
                 receipts = [{
                     "id": rcpt.receipt_id,
                     "scan_date": rcpt.time_scanned,
-                    "vendor": deep_get(rcpt.summary, "Vendor", "VENDOR_NAME"),
-                    "total": deep_get(rcpt.summary, "Recipt_details", "TOTAL"),
-                    "item_count": len(rcpt.item_listing),
-                    "invoice_id": deep_get(rcpt.summary, "Recipt_details", "INVOICE_RECEIPT_ID"),
-                    "invoice_date": deep_get(rcpt.summary, "Recipt_details", "INVOICE_RECEIPT_DATE"),
+                    "vendor": deep_get(rcpt.summary, "VENDOR", "VENDOR_NAME"),
+                    "total": deep_get(rcpt.summary, "RECEIPT_DETAILS", "TOTAL"),
+                    "item_count": deep_get(rcpt.summary, "RECEIPT_DETAILS", "ITEMS"),
+                    "invoice_id": deep_get(rcpt.summary, "RECEIPT_DETAILS", "INVOICE_RECEIPT_ID"),
+                    "invoice_date": deep_get(rcpt.summary, "RECEIPT_DETAILS", "INVOICE_RECEIPT_DATE"),
                     "category": rcpt.category,
                 } for rcpt in all_receipts]
                 st.dataframe(receipts)
@@ -142,9 +142,9 @@ with scanner_tab:
                 for idx, itm in item_data.iterrows()
             ]
 
-        if summary_data is not None and "Recipt_details" in summary_data:
+        if summary_data is not None and "RECEIPT_DETAILS" in summary_data:
             try:
-                bill_summary = summary_data["Recipt_details"]
+                bill_summary = summary_data["RECEIPT_DETAILS"]
                 tax_paid = receipt_scanner.parse_money(bill_summary.get("TAX"))
                 if tax_paid is not None:
                     item_dataset.append({"name": "Tax", "value": tax_paid})
@@ -194,8 +194,8 @@ with scanner_tab:
         if receipt_data is None:
             "Upload an image or select from history to view results"
         else:
-            item_data = receipt_data["table"]
-            summary_data = receipt_data["summary"]
+            item_data = receipt_data["TABLE"]
+            summary_data = receipt_data["SUMMARY"]
 
             img_preview_col, summary_col = st.columns(2)
 

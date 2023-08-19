@@ -29,22 +29,21 @@ class AWSPipeline(ScannerPipeline):
 
         recipt = {}
 
-        recipt["table"] = self.get_table_field(
+        recipt["TABLE"] = self.get_table_field(
             response["ExpenseDocuments"][0]["LineItemGroups"]
         )
-        recipt["summary"] = self.extract_summary(
-            response["ExpenseDocuments"][0]["SummaryFields"],
-            len(recipt['table'])
+        recipt["SUMMARY"] = self.extract_summary(
+            response["ExpenseDocuments"][0]["SummaryFields"], len(recipt["table"])
         )
         return recipt
 
     def get_table_field(self, table_field):
-        table = {}
+        table = []
         for line in table_field[0]["LineItems"]:
             row = {}
 
-            for field in line['LineItemExpenseFields']:
-                    row[field['Type']['Text']] = field['ValueDetection']['Text']
+            for field in line["LineItemExpenseFields"]:
+                row[field["Type"]["Text"]] = field["ValueDetection"]["Text"]
             table.append(row)
 
             df = pd.DataFrame(table)
@@ -67,27 +66,25 @@ class AWSPipeline(ScannerPipeline):
             "TOTAL",
         ]
         reciver_details = ["TAX_PAYER_ID", "RECEIVER_NAME"]
-        OTHER = ["Item Count:", "Qty Count :"]
         response = {}
-        response["Vendor"] = {}
-        response["Recipt_details"] = {}
-        response["Recipt_details"]["OTHER"] = {}
-        response["Customer"] = {}
+        response["VENDOR"] = {}
+        response["RECEIPT_DETAILS"] = {}
+        response["CUSTOMER"] = {}
 
         for item in summary_field:
             if item["Type"]["Text"] in vendor_info:
-                response["Vendor"][item["Type"]["Text"]] = item["ValueDetection"][
+                response["VENDOR"][item["Type"]["Text"]] = item["ValueDetection"][
                     "Text"
                 ]
             elif item["Type"]["Text"] in recipt_details:
-                response["Recipt_details"][item["Type"]["Text"]] = item[
+                response["RECEIPT_DETAILS"][item["Type"]["Text"]] = item[
                     "ValueDetection"
                 ]["Text"]
             elif item["Type"]["Text"] in reciver_details:
-                response["Customer"][item["Type"]["Text"]] = item["ValueDetection"][
+                response["CUSTOMER"][item["Type"]["Text"]] = item["ValueDetection"][
                     "Text"
                 ]
-            response['Recipt_details']['ITEMS'] = No_of_items
+            response["RECEIPT_DETAILS"]["ITEMS"] = No_of_items
 
         return response
 
