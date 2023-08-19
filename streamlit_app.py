@@ -6,6 +6,7 @@ import receipt_scanner
 from receipt_scanner import deep_get, get_aws_client
 from receipt_scanner.models import Receipt
 
+from datetime import datetime
 from typing import MutableMapping, Any, Optional, List
 from streamlit.type_util import Key
 from streamlit.connections import SQLConnection
@@ -80,7 +81,7 @@ def show_history_item(
     session_state[result_state_key] = {
         "SUMMARY": item.summary,
         "TABLE": pd.DataFrame(item.item_listing),
-        "IMAGE": item.image_data, 
+        "IMAGE": item.image_data,
     }
 
 
@@ -306,3 +307,87 @@ with scanner_tab:
 
 with statistics_tab:
     "Receipt statistics"
+
+    with receipt_db_conn.session as session:
+        all_receipts: Optional[List[Receipt]] = session.query(Receipt).all()
+
+        receipts = pd.DataFrame(
+            [
+                {
+                    "id": rcpt.receipt_id,
+                    "scan_date": rcpt.time_scanned,
+                    "vendor": deep_get(rcpt.summary, "VENDOR", "VENDOR_NAME"),
+                    "total": receipt_scanner.parse_money(deep_get(rcpt.summary, "RECEIPT_DETAILS", "TOTAL")),
+                    "item_count": deep_get(rcpt.summary, "RECEIPT_DETAILS", "ITEMS"),
+                    "invoice_id": deep_get(
+                        rcpt.summary, "RECEIPT_DETAILS", "INVOICE_RECEIPT_ID"
+                    ),
+                    "invoice_date": deep_get(
+                        rcpt.summary, "RECEIPT_DETAILS", "INVOICE_RECEIPT_DATE"
+                    ),
+                    "category": rcpt.category,
+                }
+                for rcpt in all_receipts
+            ]
+        )
+
+        if not receipts.empty:
+            this_year_receipts = receipts[receipts["scan_date"].dt.year == datetime.now().year]
+            this_year_monthwise = this_year_receipts.groupby(receipts["scan_date"].map(lambda r: r.strftime("%Y %B")))
+
+            "### Number of receipts (by month)"
+            _this_year_monthwise_count_df = pd.DataFrame([
+                {
+                    "month": month_name,
+                    "count": len(df)
+                }
+                for month_name, df in this_year_monthwise
+            ]).set_index("month")
+            st.bar_chart(_this_year_monthwise_count_df)
+
+            "### Total expenditure (by month)"
+            _this_year_monthwise_price_df = pd.DataFrame([
+                {
+                    "month": month_name,
+                    "bill_total": df["total"].sum()
+                }
+                for month_name, df in this_year_monthwise
+            ]).set_index("month")
+            st.bar_chart(_this_year_monthwise_price_df)
+
+            "### Number of receipts (by vendor)"
+            st.bar_chart(receipts["vendor"].value_counts())
+
+            # options = {
+            #     "title": {
+            #         "text": "Price breakdown",
+            #         "subtext": "Item-wise price",
+            #         "left": "center",
+            #     },
+            #     "tooltip": {"trigger": "item"},
+            #     "legend": {
+            #         "orient": "vertical",
+            #         "left": "left",
+            #     },
+            #     "series": [
+            #         {
+            #             "name": "Item",
+            #             "type": "pie",
+            #             "radius": "50%",
+            #             "data": item_dataset,
+            #             "emphasis": {
+            #                 "itemStyle": {
+            #                     "shadowBlur": 10,
+            #                     "shadowOffsetX": 0,
+            #                     "shadowColor": "rgba(0, 0, 0, 0.5)",
+            #                 }
+            #             },
+            #         },
+            #     ],
+            # }
+
+            # st_echarts(
+            #     options=options,
+            #     height="600px",
+            #     theme="dark",  # FIXME (same theme issue as above)
+            # )
