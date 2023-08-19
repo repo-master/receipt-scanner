@@ -35,14 +35,14 @@ _aws_use_mock: bool = deep_get(
 DEFAULT_AWS_CLIENT_FN = get_aws_mock_client if _aws_use_mock else get_aws_client
 
 
-def insert_new_receipt(result, save_db: SQLConnection):
+def insert_new_receipt(result, img_file_buffer, save_db: SQLConnection):
     with save_db.session as sess:
         table_data: Optional[pd.DataFrame] = result["TABLE"]
         item_list = []
         if table_data is not None:
             item_list = table_data.to_dict()
 
-        rcpt = Receipt(summary=result["SUMMARY"], item_listing=item_list)
+        rcpt = Receipt(summary=result["SUMMARY"], item_listing=item_list, image_data=img_file_buffer)
         sess.add(rcpt)
         sess.commit()
 
@@ -69,7 +69,7 @@ def image_upload_handler(
                 "TABLE": result["TABLE"],
                 "IMAGE": img_file_buffer,
             }
-            #  insert_new_receipt(result, save_db)
+            insert_new_receipt(result, img_file_buffer.read(), save_db)
 
 
 def show_history_item(
@@ -80,7 +80,7 @@ def show_history_item(
     session_state[result_state_key] = {
         "SUMMARY": item.summary,
         "TABLE": pd.DataFrame(item.item_listing),
-        "IMAGE": None,  # TODO: Change image to be shown
+        "IMAGE": item.image_data, 
     }
 
 

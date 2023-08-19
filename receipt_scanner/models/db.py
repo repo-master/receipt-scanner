@@ -3,7 +3,7 @@ from ..db import Base
 
 from datetime import datetime
 
-from sqlalchemy import JSON, Column, DateTime, Identity, Integer, String
+from sqlalchemy import JSON, Column, DateTime, Identity, Integer, String, LargeBinary
 from sqlalchemy.orm import Mapped
 from sqlalchemy.sql import func
 
@@ -30,7 +30,7 @@ class Receipt(ScannerBase):
     time_scanned: Mapped[datetime] = Column(
         "time_scanned", DateTime(timezone=True), server_default=func.now()
     )
-    # TODO: Add image column
+    image_data = Column("image_data", LargeBinary)
 
 
 __all__ = ["Receipt"]
