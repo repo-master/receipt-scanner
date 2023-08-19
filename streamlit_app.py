@@ -17,22 +17,22 @@ from mock import get_aws_mock_client
 LOGGER = logging.getLogger(__name__)
 
 
-_aws_use_mock: bool = deep_get(st.secrets, "aws_client", "use_mock_client", default=False)
+_aws_use_mock: bool = deep_get(
+    st.secrets, "aws_client", "use_mock_client", default=False
+)
 DEFAULT_AWS_CLIENT_FN = get_aws_mock_client if _aws_use_mock else get_aws_client
 
 
 def insert_new_receipt(result, save_db: SQLConnection):
     from receipt_scanner.models import Receipt
+
     with save_db.session as sess:
-        table_data: Optional[pd.DataFrame] = result['table']
+        table_data: Optional[pd.DataFrame] = result["TABLE"]
         item_list = []
         if table_data is not None:
             item_list = table_data.to_dict()
 
-        rcpt = Receipt(
-            summary=result['summary'],
-            item_listing=item_list
-        )
+        rcpt = Receipt(summary=result["SUMMARY"], item_listing=item_list)
         sess.add(rcpt)
         sess.commit()
 
@@ -120,16 +120,25 @@ with scanner_tab:
             if all_receipts is None or len(all_receipts) == 0:
                 st.write("No saved receipts found")
             else:
-                receipts = [{
-                    "id": rcpt.receipt_id,
-                    "scan_date": rcpt.time_scanned,
-                    "vendor": deep_get(rcpt.summary, "VENDOR", "VENDOR_NAME"),
-                    "total": deep_get(rcpt.summary, "RECEIPT_DETAILS", "TOTAL"),
-                    "item_count": deep_get(rcpt.summary, "RECEIPT_DETAILS", "ITEMS"),
-                    "invoice_id": deep_get(rcpt.summary, "RECEIPT_DETAILS", "INVOICE_RECEIPT_ID"),
-                    "invoice_date": deep_get(rcpt.summary, "RECEIPT_DETAILS", "INVOICE_RECEIPT_DATE"),
-                    "category": rcpt.category,
-                } for rcpt in all_receipts]
+                receipts = [
+                    {
+                        "id": rcpt.receipt_id,
+                        "scan_date": rcpt.time_scanned,
+                        "vendor": deep_get(rcpt.summary, "VENDOR", "VENDOR_NAME"),
+                        "total": deep_get(rcpt.summary, "RECEIPT_DETAILS", "TOTAL"),
+                        "item_count": deep_get(
+                            rcpt.summary, "RECEIPT_DETAILS", "ITEMS"
+                        ),
+                        "invoice_id": deep_get(
+                            rcpt.summary, "RECEIPT_DETAILS", "INVOICE_RECEIPT_ID"
+                        ),
+                        "invoice_date": deep_get(
+                            rcpt.summary, "RECEIPT_DETAILS", "INVOICE_RECEIPT_DATE"
+                        ),
+                        "category": rcpt.category,
+                    }
+                    for rcpt in all_receipts
+                ]
                 st.dataframe(receipts)
 
     "## Results"
