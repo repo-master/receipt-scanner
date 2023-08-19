@@ -46,8 +46,8 @@ class AWSPipeline(ScannerPipeline):
                 row[field["Type"]["Text"]] = field["ValueDetection"]["Text"]
             table.append(row)
 
-            df = pd.DataFrame(table)
-            return df
+        df = pd.DataFrame(table)
+        return df
 
     def extract_summary(self, summary_field, No_of_items):
         vendor_info = [
