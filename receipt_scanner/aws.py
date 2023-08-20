@@ -1,12 +1,11 @@
-from .pipeline import ScannerPipeline
-
 from contextlib import contextmanager
 from typing import Optional
 
 import boto3
 import pandas as pd
-
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+from .pipeline import ScannerPipeline
 
 
 class AWSSettings(BaseSettings):

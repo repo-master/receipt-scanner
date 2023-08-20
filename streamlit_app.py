@@ -1,20 +1,17 @@
 import logging
-import streamlit as st
-import pandas as pd
-
-import receipt_scanner
-from receipt_scanner import deep_get, get_aws_client
-from receipt_scanner.models import Receipt
-
 from datetime import datetime
-from typing import MutableMapping, Any, Optional, List
-from streamlit.type_util import Key
-from streamlit.connections import SQLConnection
+from typing import Any, List, MutableMapping, Optional
 
+import pandas as pd
 from streamlit_echarts import st_echarts
 
+import receipt_scanner
+import streamlit as st
 from mock import get_aws_mock_client
-
+from receipt_scanner import deep_get, get_aws_client
+from receipt_scanner.models import Receipt
+from streamlit.connections import SQLConnection
+from streamlit.type_util import Key
 
 LOGGER = logging.getLogger(__name__)
 
@@ -88,10 +85,9 @@ def show_history_item(
 receipt_db_conn = st.experimental_connection("receipts_db", type="sql")
 # TODO: Make it run only ONCE! This will run every time the page is rendered
 with receipt_db_conn.session as sess:
-    from receipt_scanner.db.base import Base
-
     # Import all model classes so that they are added to the Base
     import receipt_scanner.models
+    from receipt_scanner.db.base import Base
 
     Base.metadata.create_all(receipt_db_conn._instance)
 

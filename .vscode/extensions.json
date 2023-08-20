@@ -3,6 +3,7 @@
         "editorconfig.editorconfig",
         "ms-python.black-formatter",
         "ms-python.python",
-        "ms-python.isort"
+        "ms-python.isort",
+        "elagil.pre-commit-helper"
     ]
 }

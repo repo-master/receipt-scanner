@@ -1,11 +1,12 @@
 """Database models"""
-from ..db import Base
-
 from datetime import datetime
 
-from sqlalchemy import JSON, Column, DateTime, Identity, Integer, String, LargeBinary
+from sqlalchemy import (JSON, Column, DateTime, Identity, Integer, LargeBinary,
+                        String)
 from sqlalchemy.orm import Mapped
 from sqlalchemy.sql import func
+
+from ..db import Base
 
 
 class ScannerBase(Base):

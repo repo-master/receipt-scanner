@@ -1,11 +1,10 @@
 # from decimal import Decimal
 
-from re import sub
-from contextlib import suppress
-from typing import Optional
-from functools import reduce
 from collections.abc import Mapping
-
+from contextlib import suppress
+from functools import reduce
+from re import sub
+from typing import Optional
 
 TMoney = float
 
