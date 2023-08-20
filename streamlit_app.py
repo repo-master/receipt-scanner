@@ -203,7 +203,7 @@ with scanner_tab:
                     show_history_item(selected_receipt_obj, RECEIPT_RESULT_DATA_KEY)
 
             st.button(
-                "Process",
+                "Show",
                 key="btn_process_history",
                 type="secondary",
                 disabled=selected_receipt_item is None,
