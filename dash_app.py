@@ -71,5 +71,4 @@ def render_content(tab):
 
 
 if __name__ == "__main__":
-    context = ('/home/aiml/0-self-signed.cert', '/home/aiml/0-self-signed.key')
-    app.run(debug=True, host="0.0.0.0", ssl_context=context)
+    app.run(debug=True, host="0.0.0.0")
