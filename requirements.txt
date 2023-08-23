@@ -5,6 +5,11 @@ pandas
 
 SQLAlchemy
 
+price-parser
+
+dash
+sd_material_ui
+
 # AWS
 boto3
 
