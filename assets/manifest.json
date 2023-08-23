@@ -6,7 +6,7 @@
     "name": "Scanner App",
     "orientation": "any",
     "short_name": "Scanner App",
-    "start_url": "https://hercules.local:8050/",
+    "start_url": "https://scanner.phaidelta.com/",
     "theme_color": "#ffffff",
     "categories": [],
     "screenshots": [],
