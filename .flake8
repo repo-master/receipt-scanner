@@ -14,4 +14,5 @@ max-linenumber = 500
 max-line-length = 119
 multiline-quotes = double
 
-per-file-ignores = __init__.py:F401
+per-file-ignores = __init__.py:F401,
+                   dash_app.py:F401

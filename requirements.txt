@@ -1,4 +1,8 @@
-streamlit
+dash
+dash-bootstrap-components
+git+https://github.com/hpaquet/dash-material-ui
+dash-local-react-components
+
 pydantic
 pydantic-settings
 pandas
@@ -7,11 +11,5 @@ SQLAlchemy
 
 price-parser
 
-dash
-sd_material_ui
-
 # AWS
 boto3
-
-# Streamlit components
-streamlit-echarts
