@@ -11,7 +11,11 @@ from dash import ALL, Input, Output, State, callback, dash_table, dcc, html
 from dash_iconify import DashIconify
 from PIL import Image, UnidentifiedImageError
 
-from receipt_scanner.data_access.receipt import (query_get_receipts,
+import receipt_scanner
+# from mock import get_aws_mock_client
+from receipt_scanner.aws import get_aws_client
+from receipt_scanner.data_access.receipt import (insert_add_receipt,
+                                                 query_get_receipts,
                                                  receipt_summary_obj)
 from receipt_scanner.db.flask_db import app_db
 from receipt_scanner.models import Receipt
@@ -121,11 +125,7 @@ def make_receipt_card(
     )
 
 
-def make_receipt_modal(receipt_id: int):
-    receipt: Optional[Receipt] = app_db.session.query(Receipt).get(receipt_id)
-    if receipt is None:
-        return "Selected receipt does not have any data"
-
+def make_receipt_modal(receipt: Receipt):
     item_list = receipt.item_listing
     receipt_summary = receipt.summary
 
@@ -197,7 +197,6 @@ def make_receipt_modal(receipt_id: int):
         if not _prod_view.empty
         else None,
     ]
-    # return "Unknown error occurred"
 
 
 def get_results(query=None):
@@ -267,16 +266,22 @@ def upload_button():
             zIndex=10000,
             closeOnClickOutside=False,
             overlayBlur=4,
-            opened=True,
+            opened=False,
             children=[
-                dmc.Button(
-                    "Scan",
-                    id="file-upload-perform-scan",
-                    disabled=True,
-                    color="blue",
-                    mb="md",
-                    variant="gradient",
-                    rightIcon=DashIconify(icon="mdi:send-variant-outline"),
+                dmc.Group(
+                    [
+                        dmc.LoadingOverlay(dmc.Button(
+                            "Scan",
+                            id="file-upload-perform-scan",
+                            n_clicks=0,
+                            disabled=True,
+                            color="blue",
+                            mb="md",
+                            variant="gradient",
+                            rightIcon=DashIconify(icon="mdi:send-variant-outline"),
+                        )),
+                    ],
+                    position="right",
                 ),
                 dcc.Upload(
                     [
@@ -461,11 +466,12 @@ def search_filter_clear_disable(search_input):
     return len(search_input) == 0
 
 
+# View individual receipt
 @callback(
     [
-        Output("modal-view-receipt", "opened"),
+        Output("modal-view-receipt", "opened", allow_duplicate=True),
         Output({"type": "receipt-view-details-btn", "index": ALL}, "n_clicks"),
-        Output("modal-view-receipt", "children"),
+        Output("modal-view-receipt", "children", allow_duplicate=True),
     ],
     Input({"type": "receipt-view-details-btn", "index": ALL}, "n_clicks"),
     State("modal-view-receipt", "opened"),
@@ -478,7 +484,11 @@ def toggle_item_view_modal(n_clicks, opened, receipt_ids):
         try:
             sel_idx = n_clicks.index(1)
             sel_receipt = receipt_ids[sel_idx]
-            receipt_data = make_receipt_modal(sel_receipt)
+            receipt: Optional[Receipt] = app_db.session.query(Receipt).get(sel_receipt)
+            if receipt is None:
+                receipt_data = "Selected receipt does not have any data"
+            else:
+                receipt_data = make_receipt_modal(receipt)
         except ValueError:
             pass
 
@@ -488,9 +498,10 @@ def toggle_item_view_modal(n_clicks, opened, receipt_ids):
 
 # Upload file modal toggle
 @callback(
-    Output("modal-upload-image-file", "opened"),
+    Output("modal-upload-image-file", "opened", allow_duplicate=True),
     Input("btn-upload-file", "n_clicks"),
     State("modal-upload-image-file", "opened"),
+    prevent_initial_call=True
 )
 def toggle_file_upload_modal(n_clicks, is_open):
     if n_clicks:
@@ -547,3 +558,30 @@ def update_output(f_content, f_name):
         ), True
 
     return None, True
+
+
+# File submit to scan
+@callback(
+    [
+        Output("modal-upload-image-file", "opened"),
+        Output("modal-view-receipt", "opened"),
+        Output("modal-view-receipt", "children"),
+        Output("file-upload-perform-scan", "n_clicks")
+    ],
+    [Input("file-upload-perform-scan", "n_clicks")],
+    [State("upload-file-data", "contents"), State("upload-file-data", "filename")],
+    prevent_initial_call=True
+)
+def send_scan_document(n_clicks, f_content, f_name):
+    with get_aws_client("textract") as aws_client:
+        # Perform document analysis and get the result
+        with urlopen(f_content) as response:
+            img_buf = response.file.getvalue()
+            result = receipt_scanner.AWSPipeline(aws_client)(img_buf)
+            new_receipt: Receipt = insert_add_receipt(app_db.session, result, img_buf)
+
+            print("Inserted receipt ID:", new_receipt.receipt_id)
+            receipt_data = make_receipt_modal(new_receipt)
+            return False, True, receipt_data, 0
+
+    return dash.no_update, dash.no_update, dash.no_update, dash.no_update

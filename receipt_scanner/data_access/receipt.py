@@ -2,6 +2,7 @@ import difflib
 from heapq import nlargest
 from typing import List, Optional, Tuple
 
+import pandas as pd
 from sqlalchemy.orm import Session
 
 from ..models import Receipt
@@ -77,3 +78,18 @@ def query_get_receipts(
     receipts, query_str = filter_receipts(receipts, search_query, limit_results)
 
     return [receipt_summary_obj(rcpt) for rcpt in receipts], query_str
+
+
+def insert_add_receipt(sess: Session, result: dict, img_file_buffer: bytes) -> Receipt:
+    table_data: Optional[pd.DataFrame] = result["TABLE"]
+    item_list = []
+    if table_data is not None:
+        item_list = table_data.to_dict()
+
+    new_receipt = Receipt(summary=result["SUMMARY"], item_listing=item_list, image_data=img_file_buffer)
+    sess.add(new_receipt)
+    sess.commit()
+    sess.flush()
+    sess.refresh(new_receipt)
+
+    return new_receipt
