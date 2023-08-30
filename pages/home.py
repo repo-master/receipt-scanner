@@ -242,12 +242,12 @@ def upload_button():
                 ),
                 dmc.MenuDropdown(
                     [
-                        dmc.MenuItem(
-                            "Camera",
-                            id="btn-upload-camera",
-                            n_clicks=0,
-                            icon=DashIconify(icon="mdi:camera-outline"),
-                        ),
+                        # dmc.MenuItem(
+                        #     "Camera",
+                        #     id="btn-upload-camera",
+                        #     n_clicks=0,
+                        #     icon=DashIconify(icon="mdi:camera-outline"),
+                        # ),
                         dmc.MenuItem(
                             "Upload file",
                             id="btn-upload-file",
