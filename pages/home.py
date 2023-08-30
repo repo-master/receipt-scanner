@@ -13,11 +13,10 @@ from PIL import Image, UnidentifiedImageError
 
 from receipt_scanner.data_access.receipt import (query_get_receipts,
                                                  receipt_summary_obj)
-from receipt_scanner.db import DBConnectionFactory
+from receipt_scanner.db.flask_db import app_db
 from receipt_scanner.models import Receipt
 from receipt_scanner.utils import img_to_data_uri, parse_money
 
-CONN_URL = "sqlite:///receipts.test.db"
 VALID_IMAGE_EXTENSIONS = [".jpg", ".jpeg", ".png", ".bmp", ".gif", ".tiff", ".webp"]
 
 
@@ -35,7 +34,7 @@ def make_receipt_card(
             ),
             dmc.CardSection(
                 dmc.Image(
-                    src="https://upload.wikimedia.org/wikipedia/commons/0/0b/ReceiptSwiss.jpg",
+                    src=f"/receipt/{receipt_id}/thumbnail",
                     height=160,
                 )
             ),
@@ -123,94 +122,89 @@ def make_receipt_card(
 
 
 def make_receipt_modal(receipt_id: int):
-    with DBConnectionFactory.connection(CONN_URL) as conn:
-        with conn() as sess:
-            receipt: Optional[Receipt] = sess.query(Receipt).get(receipt_id)
-            if receipt is None:
-                return "Selected receipt does not have any data"
+    receipt: Optional[Receipt] = app_db.session.query(Receipt).get(receipt_id)
+    if receipt is None:
+        return "Selected receipt does not have any data"
 
-            item_list = receipt.item_listing
-            receipt_summary = receipt.summary
+    item_list = receipt.item_listing
+    receipt_summary = receipt.summary
 
-            # Some extracted summary to display
-            rec_details = receipt_summary_obj(receipt)
+    # Some extracted summary to display
+    rec_details = receipt_summary_obj(receipt)
 
-            prod_items = pd.DataFrame(
-                item_list,
-                columns=["ITEM", "UNIT_PRICE", "QUANTITY", "PRICE"],
-            )
-            _prod_view = prod_items[["ITEM", "UNIT_PRICE", "QUANTITY", "PRICE"]]
-            if receipt_summary is not None and "RECEIPT_DETAILS" in receipt_summary:
-                try:
-                    bill_summary = receipt_summary["RECEIPT_DETAILS"]
-                    tax_paid = parse_money(bill_summary.get("TAX"))
-                    if tax_paid is not None:
-                        _prod_view = pd.concat(
-                            [
-                                _prod_view,
-                                pd.DataFrame([{"ITEM": "Tax", "PRICE": tax_paid}]),
-                            ]
-                        )
-                except KeyError:
-                    pass
-
-            return [
-                html.Div(
+    prod_items = pd.DataFrame(
+        item_list,
+        columns=["ITEM", "UNIT_PRICE", "QUANTITY", "PRICE"],
+    )
+    _prod_view = prod_items[["ITEM", "UNIT_PRICE", "QUANTITY", "PRICE"]]
+    if receipt_summary is not None and "RECEIPT_DETAILS" in receipt_summary:
+        try:
+            bill_summary = receipt_summary["RECEIPT_DETAILS"]
+            tax_paid = parse_money(bill_summary.get("TAX"))
+            if tax_paid is not None:
+                _prod_view = pd.concat(
                     [
-                        dmc.Text("Details", size="lg", weight=700),
-                        dmc.Text(f'Vendor: {rec_details["vendor"]}'),
-                        dmc.Text(f'Scanned on: {rec_details["scan_date"]}'),
-                        dmc.Text(f'Total: {rec_details["total"]}'),
-                        dmc.Text(f'Invoice number: {rec_details["invoice_id"]}'),
-                    ]
-                ),
-                dmc.Text("Items", size="lg", weight=700, mt="sm"),
-                (
-                    dmc.Text("No items present")
-                    if _prod_view.empty
-                    else dash_table.DataTable(
-                        data=_prod_view.to_dict(orient="records"),
-                        tooltip_data=[
-                            {
-                                column: {
-                                    "value": f"{value} ({column})",
-                                    "type": "markdown",
-                                }
-                                for column, value in row.items()
-                            }
-                            for row in _prod_view.to_dict(orient="records")
-                        ],
-                        page_size=5,
-                        style_cell={
-                            "overflow": "hidden",
-                            "textOverflow": "ellipsis",
-                            "maxWidth": 0,
-                        },
-                        style_table={"overflowX": "auto"},
-                    )
-                ),
-                dcc.Graph(
-                    figure=px.pie(
                         _prod_view,
-                        values="PRICE",
-                        names="ITEM",
-                        title="Item summary",
-                    )
+                        pd.DataFrame([{"ITEM": "Tax", "PRICE": tax_paid}]),
+                    ]
                 )
-                if not _prod_view.empty
-                else None,
+        except KeyError:
+            pass
+
+    return [
+        html.Div(
+            [
+                dmc.Text("Details", size="lg", weight=700),
+                dmc.Text(f'Vendor: {rec_details["vendor"]}'),
+                dmc.Text(f'Scanned on: {rec_details["scan_date"]}'),
+                dmc.Text(f'Total: {rec_details["total"]}'),
+                dmc.Text(f'Invoice number: {rec_details["invoice_id"]}'),
             ]
-    return "Unknown error occurred"
+        ),
+        dmc.Text("Items", size="lg", weight=700, mt="sm"),
+        (
+            dmc.Text("No items present")
+            if _prod_view.empty
+            else dash_table.DataTable(
+                data=_prod_view.to_dict(orient="records"),
+                tooltip_data=[
+                    {
+                        column: {
+                            "value": f"{value} ({column})",
+                            "type": "markdown",
+                        }
+                        for column, value in row.items()
+                    }
+                    for row in _prod_view.to_dict(orient="records")
+                ],
+                page_size=5,
+                style_cell={
+                    "overflow": "hidden",
+                    "textOverflow": "ellipsis",
+                    "maxWidth": 0,
+                },
+                style_table={"overflowX": "auto"},
+            )
+        ),
+        dcc.Graph(
+            figure=px.pie(
+                _prod_view,
+                values="PRICE",
+                names="ITEM",
+                title="Item summary",
+            )
+        )
+        if not _prod_view.empty
+        else None,
+    ]
+    # return "Unknown error occurred"
 
 
 def get_results(query=None):
     receipt_results = []
     search_highlights = query
 
-    # TODO: Move connection to Dash app's management somehow
-    with DBConnectionFactory.connection(CONN_URL) as conn:
-        with conn() as sess:
-            receipt_results, search_highlights = query_get_receipts(sess, query)
+    receipt_results, search_highlights = query_get_receipts(app_db.session, query)
 
     if len(receipt_results) == 0:
         return "No results"

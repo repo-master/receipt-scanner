@@ -1,4 +1,7 @@
 dash
+flask
+flask-restful
+Flask-SQLAlchemy
 dash-mantine-components
 
 pydantic
