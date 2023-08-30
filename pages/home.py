@@ -1,6 +1,7 @@
-import time
-from functools import partial
+from contextlib import suppress
+from functools import lru_cache, partial
 from typing import List, Optional, Union
+from urllib.request import urlopen
 
 import dash
 import dash_mantine_components as dmc
@@ -8,14 +9,16 @@ import pandas as pd
 import plotly.express as px
 from dash import ALL, Input, Output, State, callback, dash_table, dcc, html
 from dash_iconify import DashIconify
+from PIL import Image, UnidentifiedImageError
 
 from receipt_scanner.data_access.receipt import (query_get_receipts,
                                                  receipt_summary_obj)
 from receipt_scanner.db import DBConnectionFactory
 from receipt_scanner.models import Receipt
-from receipt_scanner.utils import parse_money
+from receipt_scanner.utils import img_to_data_uri, parse_money
 
 CONN_URL = "sqlite:///receipts.test.db"
+VALID_IMAGE_EXTENSIONS = [".jpg", ".jpeg", ".png", ".bmp", ".gif", ".tiff", ".webp"]
 
 
 def make_receipt_card(
@@ -214,9 +217,11 @@ def get_results(query=None):
 
     return dmc.SimpleGrid(
         cols=1,
+        spacing="sm",
         breakpoints=[
-            {"minWidth": "md", "cols": 2},
-            {"minWidth": "lg", "cols": 3},
+            {"minWidth": "sm", "cols": 2, "spacing": "sm"},
+            {"minWidth": "lg", "cols": 3, "spacing": "md"},
+            {"minWidth": "xl", "cols": None},
         ],
         children=list(
             map(
@@ -266,33 +271,43 @@ def upload_button():
             id="modal-upload-image-file",
             size="lg",
             zIndex=10000,
+            closeOnClickOutside=False,
+            overlayBlur=4,
             opened=True,
             children=[
+                dmc.Button(
+                    "Scan",
+                    id="file-upload-perform-scan",
+                    disabled=True,
+                    color="blue",
+                    mb="md",
+                    variant="gradient",
+                    rightIcon=DashIconify(icon="mdi:send-variant-outline"),
+                ),
                 dcc.Upload(
                     [
-                        dcc.Loading(html.Div(id="output-data-file-upload"), type="circle"),
-                        html.Div(
-                            html.Div(
-                                [
-                                    "Drag and Drop or ",
-                                    html.Span(
-                                        "Select a File",
-                                        className="text-decoration-underline",
-                                    ),
-                                ]
-                            ),
-                            className="d-flex justify-content-center text-center",
+                        dmc.Center(
+                            [
+                                dmc.Text("Drag and Drop or"),
+                                dmc.Space(w="xs"),
+                                dmc.Text("Select a File", underline=True),
+                            ]
+                        ),
+                        dcc.Loading(
+                            html.Div(id="output-data-file-upload"), type="circle"
                         ),
                     ],
                     id="upload-file-data",
-                    className="p-4",
+                    multiple=False,
+                    accept=["image/*"],
                     style={
                         "cursor": "pointer",
                         "borderWidth": "1px",
                         "borderStyle": "dashed",
                         "borderRadius": "5px",
+                        "padding": "2em",
                     },
-                )
+                ),
             ],
         ),
     ]
@@ -361,8 +376,12 @@ def receipt_statistics():
     # )
 
 
+""" Enable page and set as root """
+
 dash.register_page(__name__, path="/")
 
+
+""" Main layout """
 
 layout = dmc.Tabs(
     [
@@ -386,6 +405,32 @@ layout = dmc.Tabs(
     orientation="horizontal",
     value="gallery",
 )
+
+
+""" API / callbacks """
+
+
+@lru_cache()
+def watermark_image() -> Optional[Image.Image]:
+    with suppress(UnidentifiedImageError):
+        return Image.open("./assets/images/watermark.png")
+
+
+def validate_image_gen_preview(file_url: str) -> Optional[str]:
+    try:
+        with urlopen(file_url) as response:
+            img: Image.Image = Image.open(response.file)
+            img.thumbnail(size=(480, 480), resample=Image.Resampling.LANCZOS)
+            watermark = watermark_image()
+            if watermark is not None:
+                center = (
+                    (img.width // 2) - (watermark.width // 2),
+                    (img.height // 2) - (watermark.height // 2),
+                )
+                img.paste(watermark, center, watermark)
+            return img_to_data_uri(img)
+    except UnidentifiedImageError:
+        return
 
 
 @callback(
@@ -447,13 +492,64 @@ def toggle_item_view_modal(n_clicks, opened, receipt_ids):
     return opened, n_clicks, None
 
 
+# Upload file modal toggle
+@callback(
+    Output("modal-upload-image-file", "opened"),
+    Input("btn-upload-file", "n_clicks"),
+    State("modal-upload-image-file", "opened"),
+)
+def toggle_file_upload_modal(n_clicks, is_open):
+    if n_clicks:
+        return True
+    return is_open
+
+
 # File upload callback
 @callback(
-    Output("output-data-file-upload", "children"),
+    [
+        Output("output-data-file-upload", "children"),
+        Output("file-upload-perform-scan", "disabled"),
+    ],
     [Input("upload-file-data", "contents")],
     [State("upload-file-data", "filename")],
 )
 def update_output(f_content, f_name):
     if f_content is not None:
-        time.sleep(3)
-        return html.Img(src=f_content, alt=f_name, className="img-fluid")
+        img_encoded = None
+        try:
+            img_encoded = validate_image_gen_preview(f_content)
+        except Exception as ex:
+            # TODO: Log
+            return dmc.Group(
+                [
+                    dmc.Text(
+                        "File could not be parsed due to an error:",
+                        color="red",
+                        align="center",
+                    ),
+                    dmc.Text(type(ex).__name__, color="dimmed", align="center"),
+                ]
+            ), True
+
+        if img_encoded is not None:
+            # Image is valid
+            return dmc.Image(src=img_encoded, alt=f_name), False
+
+        # Error (not valid image)
+        accepted_types = ", ".join(VALID_IMAGE_EXTENSIONS)
+        return dmc.Group(
+            [
+                dmc.Text(
+                    "File is not a valid image (could not be parsed).",
+                    color="red",
+                    align="center",
+                ),
+                dmc.Text(
+                    "Valid image types are: %s, etc." % accepted_types,
+                    color="dimmed",
+                    align="center",
+                ),
+            ]
+        ), True
+
+    return None, True

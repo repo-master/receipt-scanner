@@ -1,7 +1,6 @@
 import time
 from datetime import datetime
 
-import dash_bootstrap_components as dbc
 import dash_mantine_components as dmc
 import pandas as pd
 import plotly.express as px
@@ -15,14 +14,9 @@ app = Dash(
     use_pages=True,
     index_string=INDEX_PAGE,
     external_stylesheets=[
-        dbc.themes.BOOTSTRAP,
-        dbc.icons.BOOTSTRAP,
         "/assets/dash-fixes.css",
     ],
-    external_scripts=[
-        # "https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js",
-        # "/assets/main.js",
-    ],
+    external_scripts=[],
     suppress_callback_exceptions=True,
 )
 
@@ -32,7 +26,7 @@ app.layout = dmc.MantineProvider(
     withNormalizeCSS=True,
     children=[
         dcc.Location(id="page-location"),
-        dmc.LoadingOverlay(dbc.Container(page_container)),
+        dmc.LoadingOverlay(dmc.Container(page_container, fluid=True)),
     ],
 )
 

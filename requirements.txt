@@ -1,11 +1,11 @@
 dash
-dash-bootstrap-components
-git+https://github.com/hpaquet/dash-material-ui
-dash-local-react-components
+dash-mantine-components
 
 pydantic
 pydantic-settings
 pandas
+plotly
+pillow
 
 SQLAlchemy
 
