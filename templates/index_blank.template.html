@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    {%metas%}
+    <link rel="manifest" href="./assets/manifest.json" />
+    <title>{%title%}</title>
+    {%favicon%}
+    {%css%}
+    <style>
+        .dash-debug-menu__outer,
+        .dash-debug-menu {
+            display: none !important;
+        }
+    </style>
+</head>
+
+<body>
+    <!--[if IE]><script>
+        alert("Dash v2.7+ does not support Internet Explorer. Please use a newer browser.");
+        </script><![endif]-->
+    {%app_entry%}
+    <footer>
+        {%config%}
+        {%scripts%}
+        {%renderer%}
+    </footer>
+</body>
+
+</html>
