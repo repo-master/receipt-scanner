@@ -15,6 +15,7 @@ def filter_receipts(
     limit_results: Optional[int] = None,
 ) -> Tuple[List[Receipt], List[str]]:
     if search_query is None:
+        receipts.sort(key=lambda r: r.time_scanned, reverse=True)
         return receipts, None
 
     search_query = search_query.split(" ")
