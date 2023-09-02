@@ -52,7 +52,7 @@ def make_receipt_card(
                 [
                     dmc.Text(dmc.Highlight(invoice_id, highlight=highlights)),
                     dmc.Badge(
-                        item_price,
+                        dmc.Highlight(item_price, highlight=highlights),
                         color="red",
                         variant="light",
                     )
@@ -80,7 +80,7 @@ def make_receipt_card(
                             label="Scanned date",
                             withArrow=True,
                             children=dmc.Text(
-                                receipt_obj["scan_date"].strftime("%c"),
+                                dmc.Highlight(receipt_obj["scan_date"].strftime("%c"), highlight=highlights),
                                 size="sm",
                                 color="dimmed",
                             ),
@@ -579,8 +579,6 @@ def send_scan_document(n_clicks, f_content, f_name):
             img_buf = response.file.getvalue()
             result = receipt_scanner.AWSPipeline(aws_client)(img_buf)
             new_receipt: Receipt = insert_add_receipt(app_db.session, result, img_buf)
-
-            print("Inserted receipt ID:", new_receipt.receipt_id)
             receipt_data = make_receipt_modal(new_receipt)
             return False, True, receipt_data, 0
 

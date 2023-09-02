@@ -1,8 +1,7 @@
-import difflib
-from heapq import nlargest
-from typing import List, Optional, Tuple
+from typing import List, Optional, Tuple, Union
 
 import pandas as pd
+from fuzzywuzzy import process
 from sqlalchemy.orm import Session
 
 from ..models import Receipt
@@ -14,37 +13,32 @@ def filter_receipts(
     search_query: Optional[str] = None,
     limit_results: Optional[int] = None,
 ) -> Tuple[List[Receipt], List[str]]:
+    _filter_by_keys = ["vendor", "invoice_id", "scan_date", "total", "invoice_date", "category"]
+    """Which keys are used to search the receipts"""
+
     if search_query is None:
+        # Default sort by scan date
         receipts.sort(key=lambda r: r.time_scanned, reverse=True)
         return receipts, None
 
-    search_query = search_query.split(" ")
+    # Split query by whitespace
+    search_query = search_query.split()
 
-    def receipt_to_string(r: Receipt):
-        return "; ".join(
-            [
-                deep_get(r.summary, "VENDOR", "VENDOR_NAME"),
-                deep_get(r.summary, "RECEIPT_DETAILS", "INVOICE_RECEIPT_ID"),
-            ]
-        )
-
-    cutoff = 0.1
-    result = []
-    s = difflib.SequenceMatcher()
-
-    for q in search_query:
-        s.set_seq2(q.lower())
-        for x in receipts:
-            s.set_seq1(receipt_to_string(x).lower())
-            if s.ratio() >= cutoff:
-                result.append((s.ratio(), x))
-
-    # Move the best scorers to head of list
-    if limit_results is not None:
-        result = nlargest(limit_results, result)
-    result.sort(key=lambda r: r[0], reverse=True)
-    # Strip scores for the best n matches
-    return set(x for score, x in result), search_query
+    def receipt_obj_processor(obj: Union[Receipt, str, list]):
+        if isinstance(obj, list):
+            return ' '.join(obj)
+        if isinstance(obj, Receipt):
+            summ = receipt_summary_obj(obj)
+            return {key: summ[key] for key in _filter_by_keys if summ[key] is not None}
+        return obj
+    match_ratios = process.extractBests(
+        search_query,
+        receipts,
+        processor=receipt_obj_processor,
+        limit=10,
+        score_cutoff=50
+    )
+    return [r for r, _ in match_ratios], search_query
 
 
 def receipt_summary_obj(receipt: Receipt):

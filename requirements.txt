@@ -3,6 +3,8 @@ flask
 flask-restful
 Flask-SQLAlchemy
 dash-mantine-components
+dash_iconify
+fuzzywuzzy
 
 pydantic
 pydantic-settings
