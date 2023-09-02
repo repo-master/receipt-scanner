@@ -1,0 +1,11 @@
+version: '3.0'
+
+services:
+  scanner:
+    build: .
+    ports:
+      - "8050:5000"
+    environment:
+      - REGION_NAME
+      - AWS_ACCESS_KEY_ID
+      - AWS_SECRET_ACCESS_KEY
